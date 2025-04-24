@@ -5,17 +5,20 @@ Git Contribution Bot is a Python-based tool that generates custom GitHub contrib
 ## Features
 
 - Generate GitHub contribution heatmaps with custom text or patterns.
+- Fetch existing GitHub contributions to avoid overwriting them.
+- Automatically adjust contribution levels based on your existing contributions.
 - Control the density of contributions using noise parameters.
 - Automatically create and manage a `gh-pages` branch for commits.
 - Push commits to a remote repository to update the contribution graph.
-- Fully customizable with command-line arguments.
+- Fully customizable with interactive input.
 
 ## How It Works
 
 1. **Input Text**: You provide the text or pattern to be drawn on the GitHub contribution graph.
-2. **Noise and Art Generation**: The tool generates noise and combines it with the art (text) to create a final contribution pattern.
-3. **Commits Creation**: Commits are created for each day in the heatmap, with timestamps and messages.
-4. **Push to GitHub**: The commits are pushed to the `gh-pages` branch of your repository, updating your GitHub contribution graph.
+2. **Fetch Contributions**: The tool fetches your existing GitHub contributions to ensure no overwriting and adjusts contribution levels accordingly.
+3. **Noise and Art Generation**: The tool generates noise and combines it with the art (text) to create a final contribution pattern.
+4. **Commits Creation**: Commits are created for the missing contributions in the heatmap, with timestamps and messages.
+5. **Push to GitHub**: The commits are pushed to the `gh-pages` branch of your repository, updating your GitHub contribution graph.
 
 ## Installation
 
@@ -25,46 +28,45 @@ Git Contribution Bot is a Python-based tool that generates custom GitHub contrib
    cd gitContributionBot
    ```
 
-<!-- 2. Install the required dependencies (if any):
+2. Install the required dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Ensure you have Git installed and configured on your system. -->
+3. Ensure you have Git installed and configured on your system.
 
 ## Usage
 
-Run the script with the following command-line arguments:
+Run the script and follow the prompts:
 
 ```bash
-python GitBot.py --text "YourText" --textStroke 4 --noiseBottom 1 --noiseTop 2
+python GitBot.py
 ```
 
-### Command-Line Arguments
+### Input Parameters
 
-| Argument          | Alias | Description                                                                 |
-|--------------------|-------|-----------------------------------------------------------------------------|
-| `--text`          | `-t`  | The text to draw on the GitHub contribution graph.                          |
-| `--textStroke`    | `-ts` | The intensity of the text stroke (default: 4).                              |
-| `--noiseBottom`   | `-nb` | The minimum noise value for contributions (default: 1).                     |
-| `--noiseTop`      | `-nt` | The maximum noise value for contributions (default: 2).                     |
+| Parameter           | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| `Text`             | The text to draw on the GitHub contribution graph.                          |
+| `Text Stroke`      | The intensity of the text stroke (default: 1).                              |
+| `Noise Bottom`     | The minimum noise value for contributions (default: 1).                     |
+| `Noise Top`        | The maximum noise value for contributions (default: 2).                     |
+| `GitHub Username`  | Your GitHub username to fetch existing contributions.                       |
 
 ### Example
 
 ```bash
-python GitBot.py --text "HELLO" --textStroke 3 --noiseBottom 0 --noiseTop 2
+python GitBot.py
 ```
 
-This will generate a heatmap with the word "HELLO" drawn on it. The number of commits for each day will be:
-- level 0: no commits (noise)
-- level 1: 3 commits (noise)
-- level 2: 6 commits (noise)
-- level 3: no commits
-- level 4: 12 commits (the text itself)
+When prompted, enter:
+- Text: `HELLO`
+- Text Stroke: `2`
+- Noise Bottom: `1`
+- Noise Top: `2`
+- GitHub Username: `your-username`
 
-<!-- ## How to Customize
-
-## Project Structure -->
+This will generate a heatmap with the word "HELLO" drawn on it, ensuring no existing contributions are overwritten. The contribution levels will be adjusted based on your current GitHub activity.
 
 ## Contributing
 
@@ -73,8 +75,6 @@ Contributions are welcome! Feel free to open issues or submit pull requests to i
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-<!-- ## Acknowledgments -->
 
 ---
 

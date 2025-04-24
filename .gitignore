@@ -30,3 +30,6 @@ build/
 
 # Git-related files
 *.orig
+
+# Ignore .env file
+.env

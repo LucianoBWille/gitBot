@@ -6,27 +6,20 @@ from datetime import datetime, timedelta
 import random
 import sys
 from letters import letters
+import requests  # Add this import for fetching GitHub contributions
+from bs4 import BeautifulSoup
 
-# get parameters from the command line
-# text to draw (--text or -t)
-# text stroke (--textStroke or -ts)
-# noise bottom limit (--noiseBottom or -nb)
-# noise top limit (--noiseTop or -nt)
+
 text = ""
-textStroke = 4
+textStroke = 1
 noiseBottom = 1
 noiseTop = 2
+github_username = ""
 
-# get the parameters from the command line
-for i in range(1, len(sys.argv)):
-    if sys.argv[i] == "--text" or sys.argv[i] == "-t":
-        text = sys.argv[i + 1]
-    elif sys.argv[i] == "--textStroke" or sys.argv[i] == "-ts":
-        textStroke = int(sys.argv[i + 1])
-    elif sys.argv[i] == "--noiseBottom" or sys.argv[i] == "-nb":
-        noiseBottom = int(sys.argv[i + 1])
-    elif sys.argv[i] == "--noiseTop" or sys.argv[i] == "-nt":
-        noiseTop = int(sys.argv[i + 1])
+# New array to store actual contributions
+actualContributions = []
+# variable to store the number of contributions on a level
+contributionLevel = 1
 
 # create 3 arrays, one to store noise, one to store the art/text, and one to store the final result
 noise = []
@@ -183,31 +176,52 @@ def mixNoiseAndArt():
     # it uses the noise and art arrays
     # the final array is the sum of the noise and art arrays
     # the art should be centered in the final array
+    global textStroke
+    textStroke *= contributionLevel
+    print(f"Text stroke: {textStroke}")
     for i in range(7):
         final.append([])
         for j in range(53):
             if j < (53 - len(art[0])) // 2 or j >= (53 - len(art[0])) // 2 + len(art[0]):
-                final[i].append(noise[i][j] * textStroke)
+                # final[i].append(int(noise[i][j] * textStroke))
+                final[i].append(random.randint(1,int(noise[i][j] * textStroke)))
             else:
-                final[i].append((art[i][j - (53 - len(art[0])) // 2] if art[i][j - (53 - len(art[0])) // 2] != 0 else noise[i][j]) * textStroke)
+                if art[i][j - (53 - len(art[0])) // 2] != 0:
+                    final[i].append(int(art[i][j - (53 - len(art[0])) // 2] * textStroke))
+                else:
+                    # final[i].append(int(noise[i][j] * textStroke))
+                    final[i].append(random.randint(1,int(noise[i][j] * textStroke)))
+                # final[i].append(int(
+                #     (art[i][j - (53 - len(art[0])) // 2]) * textStroke if art[i][j - (53 - len(art[0])) // 2] != 0 else (noise[i][j] * textStroke)
+                #     ))
 
 def printArt():
     # print the art array
     print("Art")
     for line in art:
-        print(line)
+        print(' '.join([f"{x:02}" for x in line]))
+        # print(line)
 
 def printNoise():
     # print the noise array
     print("Noise")
     for line in noise:
-        print(line)
+        print(' '.join([f"{x:02}" for x in line]))
+        # print(line)
+
+def printCotributions():
+    # print the final array
+    print("Cotributions")
+    for line in actualContributions:
+        print(' '.join([f"{x:02}" for x in line]))
+        # print(line)
 
 def printFinal():
     # print the final array
     print("Final")
     for line in final:
-        print(line)
+        print(' '.join([f"{x:02}" for x in line]))
+        # print(line)
 
 def deleteBranchGhPages():
     # delete the gh-pages branch
@@ -266,34 +280,138 @@ def pushCommits():
     # synching the local and remote gh-pages branches
     os.system("git push origin gh-pages")
 
+def fetchGithubContributions(username):
+    # Fetch GitHub contributions for the user
+    global actualContributions
+    url = f"https://github.com/users/{username}/contributions"
+    response = requests.get(url)
+    if response.status_code != 200:
+        print("Failed to fetch GitHub contributions. Check your username.")
+        sys.exit()
+
+    # Parse the SVG data to extract contributions
+    soup = BeautifulSoup(response.text, 'html.parser')
+    # Find the max and min contribution per day
+    maxContribution = -1
+    minContribution = -1
+    # get all tooltips with class "sr-only position-absolute" with "contributions" in the text
+    tooltips = soup.find_all('tool-tip', {'class': 'sr-only position-absolute'})
+    for tooltip in tooltips:
+        if "contributions" in tooltip.text:
+            # print(tooltip.text)
+            # divide the text by " contributions on" and get the firt element
+            contribution = tooltip.text.split(" contributions")[0]
+            # if contribution is not a number, turn it to 0
+            if not contribution.isnumeric():
+                contribution = 0
+            else:
+                contribution = int(contribution)
+            # print(f"Contribution: {contribution}")
+            # if contribution is greater than maxContribution, set maxContribution to contribution
+            if contribution > maxContribution:
+                maxContribution = contribution
+            # if contribution is less than minContribution, set minContribution to contribution
+            if contribution < minContribution:
+                minContribution = contribution
+            # initialize min and max contribution
+            if minContribution == -1:
+                minContribution = contribution
+            if maxContribution == -1:
+                maxContribution = contribution
+    print(f"Max contribution: {maxContribution}, Min contribution: {minContribution}")
+    # calculate the contribution level
+    global contributionLevel
+    contributionLevel = maxContribution / noiseTop
+    print(f"Contribution level: {contributionLevel}")
+    # Find the contribution calendar
+    days = soup.find_all('td', {'class': 'ContributionCalendar-day'})
+    actualContributions = [[0] * 53 for _ in range(7)]
+    for day in days:
+        date = day['data-date']
+        level = int(day['data-level'])
+        weekday = datetime.strptime(date, "%Y-%m-%d").weekday()
+        week = daysFromStartOfHeatmap(date) // 7
+        # convert the date to a weekday (0 = Sunday, 6 = Saturday)
+        weekday = (weekday + 1) % 7
+        contributions = 0
+        # search in tooltips for the one that has atribute "for" equal to day id
+        for tooltip in tooltips:
+            if tooltip['for'] == day['id']:
+                contribution = tooltip.text.split(" contributions")[0]
+                if contribution.isnumeric():
+                    contributions = int(contribution)
+                else:
+                    contributions = 0
+                break
+        # print(f"Date: {date}, Weekday: {weekday}, Week: {week}, Level: {level}, Contributions: {contributions}")
+        if 0 <= week < 53:
+            # actualContributions[weekday][week] = int(level * (maxContribution - minContribution) / 4)
+            actualContributions[weekday][week] = contributions
+            # print(f"Date: {date}, Weekday: {weekday}, Week: {week}, Level: {level}, Contribution: {actualContributions[weekday][week]}")
+
+def updateFinalArray():
+    # Subtract actual contributions from the final array
+    for i in range(7):
+        for j in range(53):
+            final[i][j] = max(0, final[i][j] - actualContributions[i][j])
+
 if __name__ == "__main__":
+    text = input("Enter the text to draw: ")
     # check if the text is empty
     if text == "":
         print("Text is empty")
-        sys.exit()
+        # confirm if the user doesn't want to draw a text
+        option = input("Do you want to draw a text? (y/n): ")
+        while option.lower() != "y" and option.lower() != "n":
+            option = input("Do you want to draw a text? (y/n): ")
+        if option.lower() == "y":
+            text = input("Enter the text to draw: ")
+            if text == "" and option.lower() == "y":
+                print("Text is empty again")
+                print("Exiting...") 
+                sys.exit()
+        elif option.lower() == "n":
+            text = ""
+            print("No text will be drawn")
 
     if not textCanBeDrawn():
         print("Text can't be drawn")
         sys.exit()
 
+    textStroke = int(input("Enter the text stroke (default: 1): ") or 1)
     # check if the textStroke is empty
     if textStroke == "":
         print("Text stroke is empty")
+        print("Exiting...")
         sys.exit()
-
+    
+    noiseBottom = int(input("Enter the noise bottom limit (default: 1): ") or 1)
+    noiseTop = int(input("Enter the noise top limit (default: 2): ") or 2)
+        
     # check if the noiseBottom is greater than noiseTop
     if noiseBottom > noiseTop:
         print("Noise bottom is greater than noise top")
+        print("Exiting...")
         sys.exit()
 
     # check if the noiseBottom is less than 0
     if noiseBottom < 0:
         print("Noise bottom is less than 0")
+        print("Exiting...")
         sys.exit()  
 
     # check if the noiseTop is greater than 4
     if noiseTop > 4:
         print("Noise top is greater than 4")
+        print("Exiting...")
+        sys.exit()
+
+    github_username = input("Enter your GitHub username: ")
+
+    # check if the github_username is empty
+    if github_username == "":
+        print("GitHub username is empty")
+        print("Exiting...")
         sys.exit()
     
     print(findStartOfHeatmap() + " " + str(daysFromStartOfHeatmap(datetime.today().strftime('%Y-%m-%d'))) + " " + findEndOfHeatmap() + " " + str(weeksOnHeatmap()))
@@ -304,16 +422,24 @@ if __name__ == "__main__":
     createArt()
     printArt()
 
+    # delete the gh-pages branch
+    deleteBranchGhPages()
+
+    # Fetch GitHub contributions
+    fetchGithubContributions(github_username)
+    printCotributions()
+
     mixNoiseAndArt()
     printFinal()
 
-    # delete the gh-pages branch
-    deleteBranchGhPages()
-    # create the gh-pages branch
-    createBranchGhPages()
-    # switch to the gh-pages branch
-    switchToBranchGhPages()
-    # create the commits
-    createCommits()
-    # push the commits
-    pushCommits()
+    # Update the final array with missing contributions
+    updateFinalArray()
+    printFinal()
+    # # create the gh-pages branch
+    # createBranchGhPages()
+    # # switch to the gh-pages branch
+    # switchToBranchGhPages()
+    # # create the commits
+    # createCommits()
+    # # push the commits
+    # pushCommits()
